@@ -1,7 +1,7 @@
-# app.py
 from datetime import datetime, timedelta
 import sqlite3
-from flask import Flask, request
+import os
+from flask import Flask, request, Response
 from spyne import Application, rpc, ServiceBase, Unicode, Integer
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
@@ -133,7 +133,7 @@ class LaudoService(ServiceBase):
             return f"<Error>{res}</Error>"
         laudo = get_laudo_by_numero(numero_completo)
         venc, motivo = is_vencido(laudo)
-        return f"<Result><CaixasUsadas>{res}</CaixasUsadas><Vencido>{'true' if venc else 'false'}</Vencido><Motivo>{motivo}</Motivo></Result>"
+        return f"<Result><CaixasUsadas>{res}</CaixasUsadas><Vencido>{'true' if venc else 'false'}</Vencido><Motivo>{motivo}</Motivo></Result>"""
 
 app = Flask(__name__)
 
@@ -146,14 +146,31 @@ soap_app = Application([LaudoService], 'bdf.laudos.soap',
                        out_protocol=Soap11())
 wsgi_app = WsgiApplication(soap_app)
 
-@app.route('/soap/LaudoService', methods=['POST', 'GET'])
+@app.route('/soap/LaudoService', methods=['POST'])
 def soap_service():
-    return wsgi_app(request.environ, start_response)
+    # Integrar corretamente o Spyne (WSGI) dentro do Flask
+    def start_response(status, response_headers, exc_info=None):
+        nonlocal_response = []
 
-def start_response(status, response_headers, exc_info=None):
-    from flask import Response
-    return Response(status=status, headers=dict(response_headers))
+        def _write(data):
+            nonlocal_response.append(data)
+        return _write
+
+    environ = request.environ
+    response_data = []
+
+    def _start_response(status, headers, exc_info=None):
+        response_data.append((status, headers))
+        def write(data):
+            response_data.append(data)
+        return write
+
+    result = wsgi_app(environ, _start_response)
+    status, headers = response_data[0]
+    response_body = b"".join(result)
+    return Response(response_body, status=int(status.split(" ")[0]), headers=dict(headers), mimetype="text/xml")
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
