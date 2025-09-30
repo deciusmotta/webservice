@@ -146,7 +146,7 @@ soap_app = Application([LaudoService], 'bdf.laudos.soap',
                        out_protocol=Soap11())
 wsgi_app = WsgiApplication(soap_app)
 
-@app.route('/soap/LaudoService', methods=['POST'])
+@app.route('/soap/LaudoService', methods=['POST', 'GET'])
 def soap_service():
     # Integrar corretamente o Spyne (WSGI) dentro do Flask
     def start_response(status, response_headers, exc_info=None):
