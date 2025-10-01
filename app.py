@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import sqlite3
 import os
 from flask import Flask, request, Response
-from spyne import Application, rpc, ServiceBase, Unicode, Integer, DateTime
+from spyne import Application, rpc, ServiceBase, Unicode, Integer
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
 
@@ -91,17 +91,17 @@ soap_app = Application(
 )
 wsgi_app = WsgiApplication(soap_app)
 
-# Endpoint Flask
-@app.route("/soap/LaudoService", methods=["GET", "POST"])
+# Endpoint Flask — aceita apenas POST
+@app.route("/soap/LaudoService", methods=["POST"])
 def soap_service():
-    if request.method == "GET":
-        # Retorna WSDL
-        wsdl = soap_app.get_interface("wsdl")
-        return Response(wsdl, mimetype="text/xml")
-    else:
-        # Processa requisições SOAP
-        return Response(wsgi_app(request.environ, lambda s, h: None),
-                        mimetype="text/xml")
+    # Apenas processa requisições SOAP
+    def start_response(status, headers, exc_info=None):
+        return None
+
+    response_data = wsgi_app(request.environ, start_response)
+    # Monta resposta HTTP
+    response_body = b"".join(response_data)
+    return Response(response_body, mimetype="text/xml")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
