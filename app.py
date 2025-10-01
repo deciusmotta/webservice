@@ -6,14 +6,11 @@ from spyne import Application, rpc, ServiceBase, Unicode, Integer
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
 
-# Configuração do banco
 DB = "laudos.db"
-HIGIENIZADOR_PREFIX = "017"  # agora começa com 017 (BDF Comércio e Reciclagem LTDA)
+HIGIENIZADOR_PREFIX = "017"
 
-# Inicializa app Flask
 app = Flask(__name__)
 
-# Criação da tabela no banco
 def init_db():
     with sqlite3.connect(DB) as conn:
         cursor = conn.cursor()
@@ -31,12 +28,10 @@ def init_db():
 
 init_db()
 
-# Serviço SOAP
 class LaudoService(ServiceBase):
 
     @rpc(Unicode, Unicode, Integer, Unicode, _returns=Unicode)
     def emitir_laudo(ctx, cpf_cnpj, nome_cliente, quantidade, modelo):
-        """Emite um novo laudo seguindo as regras de negócio"""
         with sqlite3.connect(DB) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM laudos")
@@ -57,51 +52,23 @@ class LaudoService(ServiceBase):
 
         return f"Laudo emitido com sucesso! Nº {numero_completo}"
 
-    @rpc(Unicode, _returns=Unicode)
-    def consultar_laudo(ctx, numero_completo):
-        """Consulta um laudo existente pelo número completo"""
-        with sqlite3.connect(DB) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM laudos WHERE numero_completo=?",
-                           (numero_completo,))
-            laudo = cursor.fetchone()
-
-            if not laudo:
-                return "Laudo não encontrado."
-
-            # Monta XML de retorno
-            return f"""
-<Laudo>
-  <NumeroCompleto>{laudo[1]}</NumeroCompleto>
-  <DataEmissao>{laudo[2]}</DataEmissao>
-  <DataValidade>{laudo[3]}</DataValidade>
-  <CPFCNPJ>{laudo[4]}</CPFCNPJ>
-  <NomeCliente>{laudo[5]}</NomeCliente>
-  <Quantidade>{laudo[6]}</Quantidade>
-  <Modelo>{laudo[7]}</Modelo>
-</Laudo>
-"""
-
-# Aplicação SOAP
-soap_app = Application(
-    [LaudoService],
-    tns="laudoservice",
-    in_protocol=Soap11(validator="lxml"),
-    out_protocol=Soap11()
-)
+soap_app = Application([LaudoService], tns="laudoservice",
+                       in_protocol=Soap11(validator="lxml"),
+                       out_protocol=Soap11())
 wsgi_app = WsgiApplication(soap_app)
 
-# Endpoint Flask — aceita apenas POST
 @app.route("/soap/LaudoService", methods=["POST"])
 def soap_service():
-    # Apenas processa requisições SOAP
-    def start_response(status, headers, exc_info=None):
-        return None
+    # WsgiApplication espera start_response padrão
+    def start_response(status, response_headers, exc_info=None):
+        response = Response(status=int(status.split()[0]),
+                            headers=dict(response_headers))
+        return response
 
-    response_data = wsgi_app(request.environ, start_response)
-    # Monta resposta HTTP
-    response_body = b"".join(response_data)
-    return Response(response_body, mimetype="text/xml")
+    # Chamar WsgiApplication passando o ambiente WSGI do Flask
+    response = wsgi_app(request.environ, lambda status, headers, exc_info=None: None)
+    # Retornar bytes
+    return Response(b"".join(response), mimetype="text/xml")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
