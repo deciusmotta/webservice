@@ -2,6 +2,7 @@ from flask import Flask, request, Response
 from spyne import Application, rpc, ServiceBase, Unicode, Integer
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
+from io import BytesIO
 import logging
 import os
 
@@ -26,13 +27,19 @@ soap_app = Application(
 
 wsgi_app = WsgiApplication(soap_app)
 
-# --- Rota principal SOAP (GET/POST) ---
+# --- Rota SOAP ---
 @app.route("/soap", methods=['GET', 'POST'])
 def soap_server():
-    response = Response()
-    response.headers["Content-Type"] = "text/xml; charset=utf-8"
-    response.data = b"".join(wsgi_app(request.environ, response.start_response))
-    return response
+    buf = BytesIO()
+
+    def start_response(status, headers):
+        buf.status = status
+        buf.headers = headers
+        return buf.write
+
+    result = wsgi_app(request.environ, start_response)
+    response_data = b"".join(result)
+    return Response(response_data, mimetype="text/xml; charset=utf-8")
 
 # --- Página inicial ---
 @app.route("/")
