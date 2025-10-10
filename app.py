@@ -1,20 +1,52 @@
 from flask import Flask, request, Response
-from spyne import Application, rpc, ServiceBase, Unicode, Integer
+from spyne import Application, rpc, ServiceBase, Unicode, Integer, Date, ComplexModel
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
 from io import BytesIO
 import logging
 import os
+from datetime import timedelta
 
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
+# --- Modelo de retorno ---
+class LaudoResponse(ComplexModel):
+    numero_laudo = Unicode
+    data_emissao = Date
+    data_validade = Date
+    cpf_cnpj_cliente = Unicode
+    nome_cliente = Unicode
+    quantidade_caixas = Integer
+    modelo_caixas = Unicode
+
 # --- Serviço SOAP ---
 class LaudoService(ServiceBase):
-    @rpc(Integer, _returns=Unicode)
-    def gerar_laudo(ctx, numero):
-        return f"017-{numero:06d}"
+    @rpc(Integer, Date, _returns=LaudoResponse)
+    def gerar_laudo(ctx, numero, data_emissao):
+        """Gera um laudo a partir do número e da Data de Emissão"""
+        # Número do laudo formatado
+        numero_formatado = f"017{numero:06d}"
+
+        # Data de validade (30 dias após emissão, por exemplo)
+        data_validade = data_emissao + timedelta(days=30)
+
+        # Exemplo de dados fictícios
+        cpf_cnpj_cliente = "123.456.789-00"
+        nome_cliente = "João da Silva"
+        quantidade_caixas = 50
+        modelo_caixas = "Modelo X"
+
+        return LaudoResponse(
+            numero_laudo=numero_formatado,
+            data_emissao=data_emissao,
+            data_validade=data_validade,
+            cpf_cnpj_cliente=cpf_cnpj_cliente,
+            nome_cliente=nome_cliente,
+            quantidade_caixas=quantidade_caixas,
+            modelo_caixas=modelo_caixas
+        )
 
 # --- Configuração do Spyne ---
 soap_app = Application(
