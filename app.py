@@ -3,6 +3,7 @@ from spyne import Application, rpc, ServiceBase, Unicode, Integer
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 
@@ -14,6 +15,7 @@ class LaudoService(ServiceBase):
     def gerar_laudo(ctx, numero):
         """
         Gera um laudo cujo identificador completo começa com 017
+        Exemplo: numero=1 → 017-000001
         """
         return f"017-{numero:06d}"
 
@@ -28,27 +30,26 @@ soap_app = Application(
 
 wsgi_app = WsgiApplication(soap_app)
 
-
+# --- Rota principal SOAP ---
 @app.route("/soap", methods=['GET', 'POST'])
 def soap_server():
-    """Rota principal para requisições SOAP"""
+    # GET + ?wsdl → retorna WSDL
+    if request.method == 'GET' and 'wsdl' in request.args:
+        wsdl_content = soap_app.get_interface_document('wsdl')
+        return Response(wsdl_content, mimetype='text/xml; charset=utf-8')
+    
+    # POST → processa requisição SOAP
     response = Response()
     response.headers["Content-Type"] = "text/xml; charset=utf-8"
-    response.data = wsgi_app(request.environ, response.start_response)
+    response.data = b"".join(wsgi_app(request.environ, response.start_response))
     return response
 
-
-@app.route("/soap?wsdl", methods=['GET', 'POST'])
-def wsdl():
-    """Gera e retorna o WSDL dinamicamente"""
-    wsdl_content = soap_app.get_interface_document('wsdl')
-    return Response(wsdl_content, mimetype='text/xml')
-
-
+# --- Página inicial ---
 @app.route("/")
 def home():
     return "LaudoService SOAP ativo em /soap e WSDL em /soap?wsdl"
 
-
+# --- Executa o servidor ---
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
