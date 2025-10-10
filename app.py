@@ -29,7 +29,7 @@ soap_app = Application(
 wsgi_app = WsgiApplication(soap_app)
 
 
-@app.route("/soap", methods=["POST"])
+@app.route("/soap", methods=['GET', 'POST'])
 def soap_server():
     """Rota principal para requisições SOAP"""
     response = Response()
@@ -38,7 +38,7 @@ def soap_server():
     return response
 
 
-@app.route("/soap?wsdl", methods=["GET"])
+@app.route("/soap?wsdl", methods=['GET', 'POST'])
 def wsdl():
     """Gera e retorna o WSDL dinamicamente"""
     wsdl_content = soap_app.get_interface_document('wsdl')
