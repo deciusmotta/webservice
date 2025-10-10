@@ -35,7 +35,7 @@ wsgi_app = WsgiApplication(soap_app)
 def soap_server():
     # GET + ?wsdl → retorna WSDL
     if request.method == 'GET' and 'wsdl' in request.args:
-        wsdl_content = soap_app.get_interface_document('wsdl')
+        wsdl_content = soap_app.wsdl11.xml
         return Response(wsdl_content, mimetype='text/xml; charset=utf-8')
     
     # POST → processa requisição SOAP
