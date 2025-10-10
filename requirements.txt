@@ -1,5 +1,4 @@
 Flask==3.0.3
-spyne==2.13.2
+spyne==2.13.16
 lxml==5.2.2
 gunicorn==23.0.0
-
