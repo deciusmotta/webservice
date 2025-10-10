@@ -34,16 +34,19 @@ soap_app = Application(
 
 wsgi_app = WsgiApplication(soap_app)
 
-@app.route('/soap', methods=['POST', 'GET'])
+@app.route('/soap', methods=['GET', 'POST'])
 def soap_service():
     if request.method == 'GET':
-        # Exibir WSDL
-        return app.response_class(
-            soap_app.wsdl11.string,
-            content_type='text/xml'
-        )
+        # Retornar WSDL corretamente formatado
+        wsdl_xml = soap_app.wsdl11.build_interface_document('https://laudoservice.onrender.com/soap')
+        return app.response_class(wsdl_xml, content_type='text/xml; charset=utf-8')
+
     elif request.method == 'POST':
-        return wsgi_app(request.environ, start_response=lambda status, headers: None)
+        # Processar requisições SOAP normais
+        from io import BytesIO
+        response = BytesIO()
+        wsgi_result = wsgi_app(request.environ, response.write)
+        return app.response_class(response.getvalue(), content_type='text/xml; charset=utf-8')
 
 @app.route('/')
 def home():
