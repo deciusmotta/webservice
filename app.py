@@ -2,6 +2,7 @@ from flask import Flask, request
 from spyne import Application, rpc, ServiceBase, Unicode, Date, Iterable
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
+from spyne.interface.wsdl import Wsdl11
 from io import BytesIO
 
 class Iwbsfunctions_017(ServiceBase):
@@ -29,8 +30,9 @@ wsgi_app = WsgiApplication(soap_app)
 @app.route('/soap', methods=['GET', 'POST'])
 def soap_service():
     if request.method == 'GET':
-        wsdl_xml = soap_app.wsdl11.build_interface_document('https://laudoservice.onrender.com/soap')
-        return app.response_class(wsdl_xml, content_type='text/xml; charset=utf-8')
+        wsdl = Wsdl11(soap_app)
+        wsdl_document = wsdl.build_interface_document('https://laudoservice.onrender.com/soap')
+        return app.response_class(wsdl_document, content_type='text/xml; charset=utf-8')
     elif request.method == 'POST':
         response = BytesIO()
         wsgi_app(request.environ, response.write)
