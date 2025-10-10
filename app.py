@@ -13,7 +13,6 @@ app = Flask(__name__)
 class LaudoService(ServiceBase):
     @rpc(Integer, _returns=Unicode)
     def gerar_laudo(ctx, numero):
-        """Gera um laudo cujo identificador completo começa com 017"""
         return f"017-{numero:06d}"
 
 # --- Configuração do Spyne ---
@@ -27,15 +26,9 @@ soap_app = Application(
 
 wsgi_app = WsgiApplication(soap_app)
 
-# --- Rota principal SOAP ---
+# --- Rota principal SOAP (GET/POST) ---
 @app.route("/soap", methods=['GET', 'POST'])
 def soap_server():
-    # GET + ?wsdl → retorna WSDL
-    if request.method == 'GET' and 'wsdl' in request.args:
-        wsdl_content = soap_app.interface_document  # CORRETO para Spyne 2.13.x
-        return Response(wsdl_content, mimetype='text/xml; charset=utf-8')
-
-    # POST → processa requisição SOAP
     response = Response()
     response.headers["Content-Type"] = "text/xml; charset=utf-8"
     response.data = b"".join(wsgi_app(request.environ, response.start_response))
@@ -46,7 +39,6 @@ def soap_server():
 def home():
     return "LaudoService SOAP ativo em /soap e WSDL em /soap?wsdl"
 
-# --- Executa o servidor ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
