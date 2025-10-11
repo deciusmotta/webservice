@@ -5,7 +5,7 @@ from spyne.server.wsgi import WsgiApplication
 from io import BytesIO
 import logging
 import os
-from datetime import date
+from datetime import date, timedelta
 
 logging.basicConfig(level=logging.INFO)
 
@@ -47,17 +47,15 @@ class LaudoService(ServiceBase):
     @rpc(Date, _returns=LaudoResponse)
     def gerar_laudo(ctx, data_validade):
         """
-        Gera um laudo com número sequencial,
-        usando a Data de Validade enviada no Request.
+        Gera um laudo com número sequencial e validade recebida no Request SOAP.
+        Se não for informada, será adicionada validade de 15 dias.
         """
-        # Número sequencial do laudo
         numero = get_next_laudo_number()
         numero_formatado = f"017{numero:06d}"
 
-        # Data de emissão = hoje
         data_emissao = date.today()
+        data_validade_final = data_validade or (data_emissao + timedelta(days=15))
 
-        # Dados fictícios (podem ser substituídos futuramente)
         cpf_cnpj_cliente = "59.508.117/0001-23"
         nome_cliente = "Organizações Salomão Martins Ltda"
         quantidade_caixas = 50
@@ -66,7 +64,7 @@ class LaudoService(ServiceBase):
         return LaudoResponse(
             numero_laudo=numero_formatado,
             data_emissao=data_emissao,
-            data_validade=data_validade,
+            data_validade=data_validade_final,
             cpf_cnpj_cliente=cpf_cnpj_cliente,
             nome_cliente=nome_cliente,
             quantidade_caixas=quantidade_caixas,
