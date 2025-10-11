@@ -5,14 +5,13 @@ from spyne.server.wsgi import WsgiApplication
 from io import BytesIO
 import logging
 import os
-from datetime import date, timedelta
+from datetime import date
 
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
 # --- Armazena o último número de laudo gerado ---
-# Em ambiente real, isso seria armazenado em um banco de dados.
 ULTIMO_LAUDO_FILE = "ultimo_laudo.txt"
 
 def get_next_laudo_number():
@@ -45,18 +44,20 @@ class LaudoResponse(ComplexModel):
 
 # --- Serviço SOAP ---
 class LaudoService(ServiceBase):
-    @rpc(_returns=LaudoResponse)
-    def gerar_laudo(ctx):
-        """Gera um laudo com número sequencial e validade de 15 dias"""
+    @rpc(Date, _returns=LaudoResponse)
+    def gerar_laudo(ctx, data_validade):
+        """
+        Gera um laudo com número sequencial,
+        usando a Data de Validade enviada no Request.
+        """
         # Número sequencial do laudo
         numero = get_next_laudo_number()
         numero_formatado = f"017{numero:06d}"
 
-        # Datas
+        # Data de emissão = hoje
         data_emissao = date.today()
-        data_validade = data_emissao + timedelta(days=15)
 
-        # Exemplo de dados fictícios
+        # Dados fictícios (podem ser substituídos futuramente)
         cpf_cnpj_cliente = "59.508.117/0001-23"
         nome_cliente = "Organizações Salomão Martins Ltda"
         quantidade_caixas = 50
@@ -83,6 +84,7 @@ soap_app = Application(
 )
 
 wsgi_app = WsgiApplication(soap_app)
+
 
 # --- Rota SOAP ---
 @app.route("/soap", methods=['GET', 'POST'])
