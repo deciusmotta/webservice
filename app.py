@@ -5,13 +5,13 @@ from spyne.server.wsgi import WsgiApplication
 from io import BytesIO
 import logging
 import os
-from datetime import date, timedelta
+from datetime import timedelta
 
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
-# --- Armazena o último número de laudo gerado ---
+# --- Arquivo para armazenar o último número de laudo ---
 ULTIMO_LAUDO_FILE = "ultimo_laudo.txt"
 
 def get_next_laudo_number():
@@ -31,7 +31,7 @@ def get_next_laudo_number():
     return next_num
 
 
-# --- Modelo de retorno ---
+# --- Modelo de resposta ---
 class LaudoResponse(ComplexModel):
     numero_laudo = Unicode
     data_emissao = Date
@@ -45,17 +45,18 @@ class LaudoResponse(ComplexModel):
 # --- Serviço SOAP ---
 class LaudoService(ServiceBase):
     @rpc(Date, _returns=LaudoResponse)
-    def gerar_laudo(ctx, data_validade):
+    def gerar_laudo(ctx, data_emissao):
         """
-        Gera um laudo com número sequencial e validade recebida no Request SOAP.
-        Se não for informada, será adicionada validade de 15 dias.
+        Gera um laudo com base na Data de Emissão informada no Request.
+        A Data de Validade será automaticamente 15 dias após a emissão.
         """
         numero = get_next_laudo_number()
         numero_formatado = f"017{numero:06d}"
 
-        data_emissao = date.today()
-        data_validade_final = data_validade or (data_emissao + timedelta(days=15))
+        # Calcula validade
+        data_validade = data_emissao + timedelta(days=15)
 
+        # Exemplo de dados fixos
         cpf_cnpj_cliente = "59.508.117/0001-23"
         nome_cliente = "Organizações Salomão Martins Ltda"
         quantidade_caixas = 50
@@ -64,7 +65,7 @@ class LaudoService(ServiceBase):
         return LaudoResponse(
             numero_laudo=numero_formatado,
             data_emissao=data_emissao,
-            data_validade=data_validade_final,
+            data_validade=data_validade,
             cpf_cnpj_cliente=cpf_cnpj_cliente,
             nome_cliente=nome_cliente,
             quantidade_caixas=quantidade_caixas,
@@ -72,7 +73,7 @@ class LaudoService(ServiceBase):
         )
 
 
-# --- Configuração do Spyne ---
+# --- Configuração SOAP ---
 soap_app = Application(
     [LaudoService],
     tns='http://laudoservice.onrender.com/soap',
@@ -84,7 +85,7 @@ soap_app = Application(
 wsgi_app = WsgiApplication(soap_app)
 
 
-# --- Rota SOAP ---
+# --- Endpoint SOAP ---
 @app.route("/soap", methods=['GET', 'POST'])
 def soap_server():
     buf = BytesIO()
@@ -99,7 +100,7 @@ def soap_server():
     return Response(response_data, mimetype="text/xml; charset=utf-8")
 
 
-# --- Rota para WSDL ---
+# --- Endpoint WSDL ---
 @app.route("/soap?wsdl", methods=["GET"])
 def wsdl():
     wsdl_content = soap_app.get_interface_document('wsdl')
