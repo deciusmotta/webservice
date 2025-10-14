@@ -7,7 +7,7 @@
     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
     xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
 
-    <!-- Tipos -->
+    <!-- Tipos de dados -->
     <types>
         <xsd:schema targetNamespace="http://laudoservice.onrender.com/soap">
 
