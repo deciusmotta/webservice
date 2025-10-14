@@ -24,8 +24,7 @@ class LaudoResponse(ComplexModel):
     modelo_caixas = Unicode
 
 # URL do JSON no GitHub
-# GITHUB_JSON_URL = "https://raw.githubusercontent.com/deciusmotta/laudo/main/laudos_gerados.json"
-GITHUB_JSON_URL = "https://raw.githubusercontent.com/deciusmotta/laudo/refs/heads/main/laudos_gerados.json?token=GHSAT0AAAAAADMFTX6GPJXX2KHS4J46OOJ62HOVY2A"
+GITHUB_JSON_URL = "https://raw.githubusercontent.com/deciusmotta/laudo/main/laudos_gerados.json"
 
 # --- Serviço SOAP ---
 class LaudoService(ServiceBase):
@@ -51,9 +50,13 @@ class LaudoService(ServiceBase):
         if not os.path.exists(arquivo_json):
             try:
                 r = requests.get(GITHUB_JSON_URL)
+                logger.debug(f"1")
                 r.raise_for_status()
+                logger.debug(f"2")
                 with open(arquivo_json, "w", encoding="utf-8") as f:
+                    logger.debug(f"3")
                     f.write(r.text)
+                    logger.debug(f"4")
                 logger.debug("[DEBUG] Arquivo JSON baixado do GitHub.")
             except Exception as e:
                 logger.debug(f"[ERROR] Não foi possível baixar o JSON: {e}")
