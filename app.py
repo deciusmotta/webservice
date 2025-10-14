@@ -1,5 +1,5 @@
 from flask import Flask, request
-from spyne import Application, rpc, ServiceBase, Unicode, Integer, Date, Iterable
+from spyne import Application, rpc, ServiceBase, Unicode, ComplexModel
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
 from datetime import datetime, timedelta
@@ -8,9 +8,8 @@ import os
 
 app = Flask(__name__)
 
-# --- Estrutura de retorno do Laudo ---
-from spyne import ComplexModel
 
+# --- Modelo de resposta ---
 class LaudoResponse(ComplexModel):
     numero_laudo = Unicode
     data_emissao = Unicode
@@ -42,7 +41,6 @@ class LaudoService(ServiceBase):
             "modelo_caixas": modelo_caixas
         }
 
-        # Caminho do arquivo JSON
         arquivo_json = "laudos_gerados.json"
 
         # Cria o arquivo se não existir
@@ -62,37 +60,35 @@ class LaudoService(ServiceBase):
 
         return LaudoResponse(**laudo)
 
-
     @rpc(Unicode, _returns=[LaudoResponse])
-def listar_laudos(ctx, data_emissao):
-    """
-    Retorna todos os laudos gravados em laudos_gerados.json
-    filtrando pela data de emissão informada (formato DD/MM/AAAA)
-    """
-    arquivo_json = "laudos_gerados.json"
+    def listar_laudos(ctx, data_emissao):
+        """
+        Retorna todos os laudos gravados em laudos_gerados.json
+        filtrando pela data de emissão informada (formato DD/MM/AAAA)
+        """
+        arquivo_json = "laudos_gerados.json"
 
-    if not os.path.exists(arquivo_json):
-        return []
+        if not os.path.exists(arquivo_json):
+            return []
 
-    with open(arquivo_json, "r", encoding="utf-8") as f:
-        laudos_data = json.load(f)
+        with open(arquivo_json, "r", encoding="utf-8") as f:
+            laudos_data = json.load(f)
 
-    laudos_filtrados = []
-    for item in laudos_data:
-        if item.get("data_emissao") == data_emissao:
-            laudo = LaudoResponse(
-                numero_laudo=item.get("numero_laudo", ""),
-                data_emissao=item.get("data_emissao", ""),
-                data_validade=item.get("data_validade", ""),
-                cpf_cnpj_cliente=item.get("cpf_cnpj_cliente", ""),
-                nome_cliente=item.get("nome_cliente", ""),
-                quantidade_caixas=item.get("quantidade_caixas", ""),
-                modelo_caixas=item.get("modelo_caixas", "")
-            )
-            laudos_filtrados.append(laudo)
+        laudos_filtrados = []
+        for item in laudos_data:
+            if item.get("data_emissao") == data_emissao:
+                laudo = LaudoResponse(
+                    numero_laudo=item.get("numero_laudo", ""),
+                    data_emissao=item.get("data_emissao", ""),
+                    data_validade=item.get("data_validade", ""),
+                    cpf_cnpj_cliente=item.get("cpf_cnpj_cliente", ""),
+                    nome_cliente=item.get("nome_cliente", ""),
+                    quantidade_caixas=item.get("quantidade_caixas", ""),
+                    modelo_caixas=item.get("modelo_caixas", "")
+                )
+                laudos_filtrados.append(laudo)
 
-    return laudos_filtrados
-
+        return laudos_filtrados
 
 
 # --- Configuração SOAP ---
@@ -107,7 +103,7 @@ wsgi_app = WsgiApplication(soap_app)
 app.wsgi_app = wsgi_app
 
 
-# --- Rota de teste simples ---
+# --- Rota simples de verificação ---
 @app.route("/")
 def home():
     return "Serviço SOAP de Laudos ativo e funcional!"
