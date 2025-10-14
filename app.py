@@ -24,7 +24,8 @@ class LaudoResponse(ComplexModel):
     modelo_caixas = Unicode
 
 # URL do JSON no GitHub
-GITHUB_JSON_URL = "https://raw.githubusercontent.com/deciusmotta/laudo/main/laudos_gerados.json"
+# GITHUB_JSON_URL = "https://raw.githubusercontent.com/deciusmotta/laudo/main/laudos_gerados.json"
+GITHUB_JSON_URL = "https://github.com/deciusmotta/laudo/blob/main/laudos_gerados.json"
 
 # --- Serviço SOAP ---
 class LaudoService(ServiceBase):
