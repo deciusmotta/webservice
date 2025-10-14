@@ -5,6 +5,7 @@ from spyne.server.wsgi import WsgiApplication
 from datetime import datetime, timedelta
 import json
 import os
+import requests
 
 app = Flask(__name__)
 
@@ -18,6 +19,8 @@ class LaudoResponse(ComplexModel):
     quantidade_caixas = Unicode
     modelo_caixas = Unicode
 
+# URL do JSON no GitHub
+GITHUB_JSON_URL = "https://raw.githubusercontent.com/deciusmotta/laudo/main/laudos_gerados.json"
 
 # --- Serviço SOAP ---
 class LaudoService(ServiceBase):
@@ -39,14 +42,25 @@ class LaudoService(ServiceBase):
 
         arquivo_json = os.path.join(os.path.dirname(__file__), "laudos_gerados.json")
 
-        # Cria o arquivo se não existir
+        # Baixa JSON do GitHub se não existir
         if not os.path.exists(arquivo_json):
-            with open(arquivo_json, "w", encoding="utf-8") as f:
-                json.dump([], f, ensure_ascii=False, indent=4)
+            try:
+                r = requests.get(GITHUB_JSON_URL)
+                r.raise_for_status()
+                with open(arquivo_json, "w", encoding="utf-8") as f:
+                    f.write(r.text)
+                print("[DEBUG] Arquivo JSON baixado do GitHub.")
+            except Exception as e:
+                print(f"[ERROR] Não foi possível baixar o JSON: {e}")
+                return LaudoResponse(**laudo)  # Retorna apenas o laudo atual
 
         # Lê, adiciona e salva
         with open(arquivo_json, "r", encoding="utf-8") as f:
-            dados = json.load(f)
+            try:
+                dados = json.load(f)
+            except json.JSONDecodeError:
+                dados = []
+
         dados.append(laudo)
         with open(arquivo_json, "w", encoding="utf-8") as f:
             json.dump(dados, f, ensure_ascii=False, indent=4)
@@ -59,18 +73,28 @@ class LaudoService(ServiceBase):
         print(f"[DEBUG] Caminho do JSON: {arquivo_json}")
         print(f"[DEBUG] Data de emissão recebida: {data_emissao}")
 
+        # Baixa JSON do GitHub se não existir local
         if not os.path.exists(arquivo_json):
-            print("[DEBUG] Arquivo JSON não encontrado. Retornando lista vazia.")
-            return []
+            try:
+                r = requests.get(GITHUB_JSON_URL)
+                r.raise_for_status()
+                with open(arquivo_json, "w", encoding="utf-8") as f:
+                    f.write(r.text)
+                print("[DEBUG] Arquivo JSON baixado do GitHub.")
+            except Exception as e:
+                print(f"[ERROR] Não foi possível baixar o JSON: {e}")
+                return []
 
+        # Lê JSON
         with open(arquivo_json, "r", encoding="utf-8") as f:
             try:
                 laudos_data = json.load(f)
                 print(f"[DEBUG] Conteúdo do JSON: {laudos_data}")
             except json.JSONDecodeError:
-                print("[DEBUG] Erro ao decodificar JSON. Retornando lista vazia.")
+                print("[DEBUG] Erro ao decodificar JSON.")
                 return []
 
+        # Filtra por data de emissão
         laudos_filtrados = []
         for item in laudos_data:
             if item.get("data_emissao") == data_emissao:
@@ -99,14 +123,12 @@ soap_app = Application(
 wsgi_app = WsgiApplication(soap_app)
 app.wsgi_app = wsgi_app
 
-
 # --- Rota de verificação ---
 @app.route("/")
 def home():
     return "Serviço SOAP de Laudos ativo e funcional!"
 
-
-# --- Rota para servir o WSDL atualizado ---
+# --- Rota para servir o WSDL ---
 @app.route("/wsdl")
 def wsdl():
     wsdl_path = os.path.join(os.path.dirname(__file__), "laudoservice.wsdl")
@@ -115,7 +137,6 @@ def wsdl():
     with open(wsdl_path, "r", encoding="utf-8") as f:
         content = f.read()
     return Response(content, mimetype="text/xml")
-
 
 # --- Inicialização ---
 if __name__ == "__main__":
