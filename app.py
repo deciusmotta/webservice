@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, Response
 from spyne import Application, rpc, ServiceBase, Unicode, ComplexModel
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
@@ -7,7 +7,6 @@ import json
 import os
 
 app = Flask(__name__)
-
 
 # --- Modelo de resposta ---
 class LaudoResponse(ComplexModel):
@@ -20,14 +19,11 @@ class LaudoResponse(ComplexModel):
     modelo_caixas = Unicode
 
 
-# --- Serviço principal ---
+# --- Serviço SOAP ---
 class LaudoService(ServiceBase):
 
     @rpc(Unicode, Unicode, Unicode, Unicode, Unicode, _returns=LaudoResponse)
     def gerar_laudo(ctx, nome_cliente, cpf_cnpj_cliente, quantidade_caixas, modelo_caixas, numero_laudo):
-        """
-        Gera um novo laudo e salva no arquivo laudos_gerados.json
-        """
         data_emissao = datetime.now().strftime("%d/%m/%Y")
         data_validade = (datetime.now() + timedelta(days=15)).strftime("%d/%m/%Y")
 
@@ -41,20 +37,17 @@ class LaudoService(ServiceBase):
             "modelo_caixas": modelo_caixas
         }
 
-        arquivo_json = "laudos_gerados.json"
+        arquivo_json = os.path.join(os.path.dirname(__file__), "laudos_gerados.json")
 
         # Cria o arquivo se não existir
         if not os.path.exists(arquivo_json):
             with open(arquivo_json, "w", encoding="utf-8") as f:
                 json.dump([], f, ensure_ascii=False, indent=4)
 
-        # Lê e adiciona o novo laudo
+        # Lê, adiciona e salva
         with open(arquivo_json, "r", encoding="utf-8") as f:
             dados = json.load(f)
-
         dados.append(laudo)
-
-        # Grava o novo conteúdo
         with open(arquivo_json, "w", encoding="utf-8") as f:
             json.dump(dados, f, ensure_ascii=False, indent=4)
 
@@ -62,17 +55,21 @@ class LaudoService(ServiceBase):
 
     @rpc(Unicode, _returns=[LaudoResponse])
     def listar_laudos(ctx, data_emissao):
-        """
-        Retorna todos os laudos gravados em laudos_gerados.json
-        filtrando pela data de emissão informada (formato DD/MM/AAAA)
-        """
-        arquivo_json = "laudos_gerados.json"
+        arquivo_json = os.path.join(os.path.dirname(__file__), "laudos_gerados.json")
+        print(f"[DEBUG] Caminho do JSON: {arquivo_json}")
+        print(f"[DEBUG] Data de emissão recebida: {data_emissao}")
 
         if not os.path.exists(arquivo_json):
+            print("[DEBUG] Arquivo JSON não encontrado. Retornando lista vazia.")
             return []
 
         with open(arquivo_json, "r", encoding="utf-8") as f:
-            laudos_data = json.load(f)
+            try:
+                laudos_data = json.load(f)
+                print(f"[DEBUG] Conteúdo do JSON: {laudos_data}")
+            except json.JSONDecodeError:
+                print("[DEBUG] Erro ao decodificar JSON. Retornando lista vazia.")
+                return []
 
         laudos_filtrados = []
         for item in laudos_data:
@@ -88,6 +85,7 @@ class LaudoService(ServiceBase):
                 )
                 laudos_filtrados.append(laudo)
 
+        print(f"[DEBUG] Laudos filtrados: {laudos_filtrados}")
         return laudos_filtrados
 
 
@@ -98,16 +96,27 @@ soap_app = Application(
     in_protocol=Soap11(validator="lxml"),
     out_protocol=Soap11()
 )
-
 wsgi_app = WsgiApplication(soap_app)
 app.wsgi_app = wsgi_app
 
 
-# --- Rota simples de verificação ---
+# --- Rota de verificação ---
 @app.route("/")
 def home():
     return "Serviço SOAP de Laudos ativo e funcional!"
 
 
+# --- Rota para servir o WSDL atualizado ---
+@app.route("/wsdl")
+def wsdl():
+    wsdl_path = os.path.join(os.path.dirname(__file__), "laudoservice.wsdl")
+    if not os.path.exists(wsdl_path):
+        return Response("WSDL não encontrado.", status=404)
+    with open(wsdl_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    return Response(content, mimetype="text/xml")
+
+
+# --- Inicialização ---
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
