@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions
+    name="LaudoService"
+    targetNamespace="http://laudoservice.onrender.com/soap"
+    xmlns:tns="http://laudoservice.onrender.com/soap"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+
+    <!-- Tipos -->
+    <types>
+        <xsd:schema targetNamespace="http://laudoservice.onrender.com/soap">
+
+            <!-- Tipo LaudoResponse -->
+            <xsd:complexType name="LaudoResponse">
+                <xsd:sequence>
+                    <xsd:element name="numero_laudo" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="data_emissao" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="data_validade" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="cpf_cnpj_cliente" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="nome_cliente" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="quantidade_caixas" type="xsd:string" minOccurs="0"/>
+                    <xsd:element name="modelo_caixas" type="xsd:string" minOccurs="0"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <!-- Requisição gerar_laudo -->
+            <xsd:element name="gerar_laudo">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="nome_cliente" type="xsd:string"/>
+                        <xsd:element name="cpf_cnpj_cliente" type="xsd:string"/>
+                        <xsd:element name="quantidade_caixas" type="xsd:string"/>
+                        <xsd:element name="modelo_caixas" type="xsd:string"/>
+                        <xsd:element name="numero_laudo" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <!-- Resposta gerar_laudo -->
+            <xsd:element name="gerar_laudoResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="gerar_laudoResult" type="tns:LaudoResponse"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <!-- Requisição listar_laudos -->
+            <xsd:element name="listar_laudos">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="data_emissao" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <!-- Resposta listar_laudos -->
+            <xsd:element name="listar_laudosResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="listar_laudosResult" type="tns:LaudoResponse" minOccurs="0" maxOccurs="unbounded"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+        </xsd:schema>
+    </types>
+
+    <!-- Mensagens -->
+    <message name="gerar_laudoRequest">
+        <part name="parameters" element="tns:gerar_laudo"/>
+    </message>
+
+    <message name="gerar_laudoResponse">
+        <part name="parameters" element="tns:gerar_laudoResponse"/>
+    </message>
+
+    <message name="listar_laudosRequest">
+        <part name="parameters" element="tns:listar_laudos"/>
+    </message>
+
+    <message name="listar_laudosResponse">
+        <part name="parameters" element="tns:listar_laudosResponse"/>
+    </message>
+
+    <!-- PortType -->
+    <portType name="LaudoServicePortType">
+        <operation name="gerar_laudo">
+            <input message="tns:gerar_laudoRequest"/>
+            <output message="tns:gerar_laudoResponse"/>
+        </operation>
+        <operation name="listar_laudos">
+            <input message="tns:listar_laudosRequest"/>
+            <output message="tns:listar_laudosResponse"/>
+        </operation>
+    </portType>
+
+    <!-- Binding -->
+    <binding name="LaudoServiceBinding" type="tns:LaudoServicePortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <operation name="gerar_laudo">
+            <soap:operation soapAction="gerar_laudo"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+        </operation>
+        <operation name="listar_laudos">
+            <soap:operation soapAction="listar_laudos"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+        </operation>
+    </binding>
+
+    <!-- Serviço -->
+    <service name="LaudoService">
+        <port name="LaudoServicePort" binding="tns:LaudoServiceBinding">
+            <soap:address location="https://laudoservice.onrender.com/soap"/>
+        </port>
+    </service>
+
+</definitions>
