@@ -6,12 +6,12 @@ from datetime import datetime, timedelta
 import json
 import os
 import requests
+import logging
 
 app = Flask(__name__)
 
-if __name__ == "__main__":
-    # Habilita debug
-    app.run(host="0.0.0.0", port=5000, debug=True)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # --- Modelo de resposta ---
 class LaudoResponse(ComplexModel):
@@ -77,6 +77,8 @@ class LaudoService(ServiceBase):
         arquivo_json = os.path.join(os.path.dirname(__file__), "laudos_gerados.json")
         print(f"[DEBUG] Caminho do JSON: {arquivo_json}")
         print(f"[DEBUG] Data de emissão recebida: {data_emissao}")
+        logger.debug(f"Caminho do JSON: {arquivo_json}")
+        logger.debug(f"Data recebida: {data_emissao}")
 
         # Baixa JSON do GitHub se não existir local
         if not os.path.exists(arquivo_json):
