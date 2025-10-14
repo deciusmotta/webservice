@@ -1,118 +1,113 @@
-from flask import Flask, request, Response
-from spyne import Application, rpc, ServiceBase, Unicode, Integer, Date, ComplexModel
+from flask import Flask, request
+from spyne import Application, rpc, ServiceBase, Unicode, Integer, Date, Iterable
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
-from io import BytesIO
-import logging
+from datetime import datetime, timedelta
+import json
 import os
-from datetime import timedelta
-
-logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
-# --- Arquivo para armazenar o último número de laudo ---
-ULTIMO_LAUDO_FILE = "ultimo_laudo.txt"
+# --- Estrutura de retorno do Laudo ---
+from spyne import ComplexModel
 
-def get_next_laudo_number():
-    """Gera número sequencial do laudo"""
-    if not os.path.exists(ULTIMO_LAUDO_FILE):
-        with open(ULTIMO_LAUDO_FILE, "w") as f:
-            f.write("0")
-
-    with open(ULTIMO_LAUDO_FILE, "r") as f:
-        last = int(f.read().strip() or "0")
-
-    next_num = last + 1
-
-    with open(ULTIMO_LAUDO_FILE, "w") as f:
-        f.write(str(next_num))
-
-    return next_num
-
-
-# --- Modelo de resposta ---
 class LaudoResponse(ComplexModel):
     numero_laudo = Unicode
-    data_emissao = Date
-    data_validade = Date
+    data_emissao = Unicode
+    data_validade = Unicode
     cpf_cnpj_cliente = Unicode
     nome_cliente = Unicode
-    quantidade_caixas = Integer
+    quantidade_caixas = Unicode
     modelo_caixas = Unicode
 
 
-# --- Serviço SOAP ---
+# --- Serviço principal ---
 class LaudoService(ServiceBase):
-    @rpc(Date, _returns=LaudoResponse)
-    def gerar_laudo(ctx, data_emissao):
+
+    @rpc(Unicode, Unicode, Unicode, Unicode, Unicode, _returns=LaudoResponse)
+    def gerar_laudo(ctx, nome_cliente, cpf_cnpj_cliente, quantidade_caixas, modelo_caixas, numero_laudo):
         """
-        Gera um laudo com base na Data de Emissão informada no Request.
-        A Data de Validade será automaticamente 15 dias após a emissão.
+        Gera um novo laudo e salva no arquivo laudos_gerados.json
         """
-        numero = get_next_laudo_number()
-        numero_formatado = f"017{numero:06d}"
+        data_emissao = datetime.now().strftime("%d/%m/%Y")
+        data_validade = (datetime.now() + timedelta(days=15)).strftime("%d/%m/%Y")
 
-        # Calcula validade
-        data_validade = data_emissao + timedelta(days=15)
+        laudo = {
+            "numero_laudo": numero_laudo,
+            "data_emissao": data_emissao,
+            "data_validade": data_validade,
+            "cpf_cnpj_cliente": cpf_cnpj_cliente,
+            "nome_cliente": nome_cliente,
+            "quantidade_caixas": quantidade_caixas,
+            "modelo_caixas": modelo_caixas
+        }
 
-        # Exemplo de dados fixos
-        cpf_cnpj_cliente = "59.508.117/0001-23"
-        nome_cliente = "Organizações Salomão Martins Ltda"
-        quantidade_caixas = 50
-        modelo_caixas = "Modelo X"
+        # Caminho do arquivo JSON
+        arquivo_json = "laudos_gerados.json"
 
-        return LaudoResponse(
-            numero_laudo=numero_formatado,
-            data_emissao=data_emissao,
-            data_validade=data_validade,
-            cpf_cnpj_cliente=cpf_cnpj_cliente,
-            nome_cliente=nome_cliente,
-            quantidade_caixas=quantidade_caixas,
-            modelo_caixas=modelo_caixas
-        )
+        # Cria o arquivo se não existir
+        if not os.path.exists(arquivo_json):
+            with open(arquivo_json, "w", encoding="utf-8") as f:
+                json.dump([], f, ensure_ascii=False, indent=4)
+
+        # Lê e adiciona o novo laudo
+        with open(arquivo_json, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+
+        dados.append(laudo)
+
+        # Grava o novo conteúdo
+        with open(arquivo_json, "w", encoding="utf-8") as f:
+            json.dump(dados, f, ensure_ascii=False, indent=4)
+
+        return LaudoResponse(**laudo)
+
+
+    @rpc(_returns=[LaudoResponse])
+    def listar_laudos(ctx):
+        """
+        Retorna todos os laudos gravados em laudos_gerados.json
+        """
+        arquivo_json = "laudos_gerados.json"
+
+        if not os.path.exists(arquivo_json):
+            return []
+
+        with open(arquivo_json, "r", encoding="utf-8") as f:
+            laudos_data = json.load(f)
+
+        laudos = []
+        for item in laudos_data:
+            laudo = LaudoResponse(
+                numero_laudo=item.get("numero_laudo", ""),
+                data_emissao=item.get("data_emissao", ""),
+                data_validade=item.get("data_validade", ""),
+                cpf_cnpj_cliente=item.get("cpf_cnpj_cliente", ""),
+                nome_cliente=item.get("nome_cliente", ""),
+                quantidade_caixas=item.get("quantidade_caixas", ""),
+                modelo_caixas=item.get("modelo_caixas", "")
+            )
+            laudos.append(laudo)
+        return laudos
 
 
 # --- Configuração SOAP ---
 soap_app = Application(
     [LaudoService],
-    tns='http://laudoservice.onrender.com/soap',
-    name='LaudoService',
-    in_protocol=Soap11(validator='lxml'),
+    tns="http://laudoservice.onrender.com/soap",
+    in_protocol=Soap11(validator="lxml"),
     out_protocol=Soap11()
 )
 
 wsgi_app = WsgiApplication(soap_app)
+app.wsgi_app = wsgi_app
 
 
-# --- Endpoint SOAP ---
-@app.route("/soap", methods=['GET', 'POST'])
-def soap_server():
-    buf = BytesIO()
-
-    def start_response(status, headers):
-        buf.status = status
-        buf.headers = headers
-        return buf.write
-
-    result = wsgi_app(request.environ, start_response)
-    response_data = b"".join(result)
-    return Response(response_data, mimetype="text/xml; charset=utf-8")
-
-
-# --- Endpoint WSDL ---
-@app.route("/soap?wsdl", methods=["GET"])
-def wsdl():
-    wsdl_content = soap_app.get_interface_document('wsdl')
-    return Response(wsdl_content, mimetype='text/xml')
-
-
-# --- Página inicial ---
+# --- Rota de teste simples ---
 @app.route("/")
 def home():
-    return "LaudoService SOAP ativo em /soap e WSDL em /soap?wsdl"
+    return "Serviço SOAP de Laudos ativo e funcional!"
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=5000)
