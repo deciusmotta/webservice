@@ -69,6 +69,7 @@ class LaudoService(ServiceBase):
 
     @rpc(Unicode, _returns=[LaudoResponse])
     def listar_laudos(ctx, data_emissao):
+        print(f"[DEBUG] Parâmetro recebido: {data_emissao}")  # <- deve mostrar "14/10/2025"
         arquivo_json = os.path.join(os.path.dirname(__file__), "laudos_gerados.json")
         print(f"[DEBUG] Caminho do JSON: {arquivo_json}")
         print(f"[DEBUG] Data de emissão recebida: {data_emissao}")
