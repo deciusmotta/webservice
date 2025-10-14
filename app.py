@@ -53,9 +53,9 @@ class LaudoService(ServiceBase):
                 r.raise_for_status()
                 with open(arquivo_json, "w", encoding="utf-8") as f:
                     f.write(r.text)
-                print("[DEBUG] Arquivo JSON baixado do GitHub.")
+                logger.debug("[DEBUG] Arquivo JSON baixado do GitHub.")
             except Exception as e:
-                print(f"[ERROR] Não foi possível baixar o JSON: {e}")
+                logger.debug(f"[ERROR] Não foi possível baixar o JSON: {e}")
                 return LaudoResponse(**laudo)  # Retorna apenas o laudo atual
 
         # Lê, adiciona e salva
@@ -73,10 +73,10 @@ class LaudoService(ServiceBase):
 
     @rpc(Unicode, _returns=[LaudoResponse])
     def listar_laudos(ctx, data_emissao):
-        print(f"[DEBUG] Parâmetro recebido: {data_emissao}")  # <- deve mostrar "14/10/2025"
+        logger.debug(f"[DEBUG] Parâmetro recebido: {data_emissao}")  # <- deve mostrar "14/10/2025"
         arquivo_json = os.path.join(os.path.dirname(__file__), "laudos_gerados.json")
-        print(f"[DEBUG] Caminho do JSON: {arquivo_json}")
-        print(f"[DEBUG] Data de emissão recebida: {data_emissao}")
+        logger.debug(f"[DEBUG] Caminho do JSON: {arquivo_json}")
+        logger.debug(f"[DEBUG] Data de emissão recebida: {data_emissao}")
         logger.debug(f"Caminho do JSON: {arquivo_json}")
         logger.debug(f"Data recebida: {data_emissao}")
 
@@ -87,18 +87,18 @@ class LaudoService(ServiceBase):
                 r.raise_for_status()
                 with open(arquivo_json, "w", encoding="utf-8") as f:
                     f.write(r.text)
-                print("[DEBUG] Arquivo JSON baixado do GitHub.")
+                logger.debug("[DEBUG] Arquivo JSON baixado do GitHub.")
             except Exception as e:
-                print(f"[ERROR] Não foi possível baixar o JSON: {e}")
+                logger.debug(f"[ERROR] Não foi possível baixar o JSON: {e}")
                 return []
 
         # Lê JSON
         with open(arquivo_json, "r", encoding="utf-8") as f:
             try:
                 laudos_data = json.load(f)
-                print(f"[DEBUG] Conteúdo do JSON: {laudos_data}")
+                logger.debug(f"[DEBUG] Conteúdo do JSON: {laudos_data}")
             except json.JSONDecodeError:
-                print("[DEBUG] Erro ao decodificar JSON.")
+                logger.debug("[DEBUG] Erro ao decodificar JSON.")
                 return []
 
         # Filtra por data de emissão
@@ -116,7 +116,7 @@ class LaudoService(ServiceBase):
                 )
                 laudos_filtrados.append(laudo)
 
-        print(f"[DEBUG] Laudos filtrados: {laudos_filtrados}")
+        logger.debug(f"[DEBUG] Laudos filtrados: {laudos_filtrados}")
         return laudos_filtrados
 
 
