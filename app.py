@@ -50,13 +50,13 @@ class LaudoService(ServiceBase):
         if not os.path.exists(arquivo_json):
             try:
                 r = requests.get(GITHUB_JSON_URL)
-                logger.debug(f"1")
+                logger.debug(f"aqui1")
                 r.raise_for_status()
-                logger.debug(f"2")
+                logger.debug(f"aqui2")
                 with open(arquivo_json, "w", encoding="utf-8") as f:
-                    logger.debug(f"3")
+                    logger.debug(f"aqui3")
                     f.write(r.text)
-                    logger.debug(f"4")
+                    logger.debug(f"aqui4")
                 logger.debug("[DEBUG] Arquivo JSON baixado do GitHub.")
             except Exception as e:
                 logger.debug(f"[ERROR] Não foi possível baixar o JSON: {e}")
@@ -86,13 +86,19 @@ class LaudoService(ServiceBase):
 
         # Baixa JSON do GitHub se não existir local
         if not os.path.exists(arquivo_json):
+            logger.debug(f"la1")
             try:
                 r = requests.get(GITHUB_JSON_URL)
+                logger.debug(f"la2")
                 r.raise_for_status()
+                logger.debug(f"la3")
                 with open(arquivo_json, "w", encoding="utf-8") as f:
+                    logger.debug(f"la4")
                     f.write(r.text)
+                    logger.debug(f"la5")
                 logger.debug("[DEBUG] Arquivo JSON baixado do GitHub.")
             except Exception as e:
+                logger.debug(f"la6")
                 logger.debug(f"[ERROR] Não foi possível baixar o JSON: {e}")
                 return []
 
