@@ -1,11 +1,10 @@
 import json
 import logging
 import requests
-from spyne import Application, rpc, ServiceBase, Iterable, Unicode
+from spyne import Application, rpc, ServiceBase, Unicode
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
 from spyne.model.complex import ComplexModel
-from spyne.model.primitive import Integer
 
 # Configuração de log
 logging.basicConfig(level=logging.DEBUG)
@@ -87,7 +86,7 @@ class LaudoService(ServiceBase):
         return laudo
 
 application = Application([LaudoService],
-    tns="spyne.examples.laudos",
+    tns="http://laudoservice.onrender.com/soap",
     in_protocol=Soap11(validator="lxml"),
     out_protocol=Soap11()
 )
