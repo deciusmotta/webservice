@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # URL do arquivo JSON no GitHub
 GITHUB_JSON_URL = "https://raw.githubusercontent.com/deciusmotta/laudo/main/laudos_gerados.json"
 
+# --- Modelo de laudo ---
 class LaudoResponse(ComplexModel):
     numero_laudo = Unicode
     data_emissao = Unicode
@@ -23,13 +24,13 @@ class LaudoResponse(ComplexModel):
     quantidade_caixas = Unicode
     modelo_caixas = Unicode
 
+# --- Serviço SOAP ---
 class LaudoService(ServiceBase):
 
     @rpc(Unicode, _returns=[LaudoResponse])
     def listar_laudos(ctx, data_emissao):
         logger.debug(f"[DEBUG] Data de emissão recebida: {data_emissao}")
         try:
-            logger.debug("[DEBUG] Baixando JSON atualizado do GitHub...")
             r = requests.get(GITHUB_JSON_URL)
             r.raise_for_status()
             laudos_data = r.json()
@@ -44,16 +45,16 @@ class LaudoService(ServiceBase):
                 json_date = datetime.strptime(item.get("data_emissao", "").strip(), "%d/%m/%Y")
                 req_date = datetime.strptime(data_emissao.strip(), "%d/%m/%Y")
                 if json_date == req_date:
-                    laudo = LaudoResponse(
-                        numero_laudo=item.get("numero_laudo", ""),
-                        data_emissao=item.get("data_emissao", ""),
-                        data_validade=item.get("data_validade", ""),
-                        cpf_cnpj_cliente=item.get("cpf_cnpj_cliente", ""),
-                        nome_cliente=item.get("nome_cliente", ""),
-                        quantidade_caixas=item.get("quantidade_caixas", ""),
-                        modelo_caixas=item.get("modelo_caixas", "")
-                    )
-                    laudos_filtrados.append(laudo)
+                    # Retorna dicionário, não instância de ComplexModel
+                    laudos_filtrados.append({
+                        "numero_laudo": item.get("numero_laudo", ""),
+                        "data_emissao": item.get("data_emissao", ""),
+                        "data_validade": item.get("data_validade", ""),
+                        "cpf_cnpj_cliente": item.get("cpf_cnpj_cliente", ""),
+                        "nome_cliente": item.get("nome_cliente", ""),
+                        "quantidade_caixas": item.get("quantidade_caixas", ""),
+                        "modelo_caixas": item.get("modelo_caixas", "")
+                    })
             except Exception as ex:
                 logger.debug(f"[DEBUG] Ignorando item inválido: {item}, erro: {ex}")
                 continue
@@ -67,8 +68,8 @@ class LaudoService(ServiceBase):
 
         laudo = {
             "numero_laudo": numero_laudo,
-            "data_emissao": "2025-10-15",
-            "data_validade": "2026-10-15",
+            "data_emissao": datetime.now().strftime("%d/%m/%Y"),
+            "data_validade": (datetime.now() + timedelta(days=15)).strftime("%d/%m/%Y"),
             "cpf_cnpj_cliente": cpf_cnpj_cliente,
             "nome_cliente": nome_cliente,
             "quantidade_caixas": quantidade_caixas,
@@ -90,18 +91,8 @@ class LaudoService(ServiceBase):
             json.dump(dados, f, ensure_ascii=False, indent=4)
 
         logger.debug(f"[DEBUG] Novo laudo gerado: {laudo}")
-        return laudo
+        return laudo  # Retorna dicionário para Spyne
 
+# --- Configuração do SOAP ---
 application = Application([LaudoService],
-    tns="http://laudoservice.onrender.com/soap",
-    in_protocol=Soap11(validator="lxml"),
-    out_protocol=Soap11()
-)
-
-wsgi_app = WsgiApplication(application)
-
-if __name__ == "__main__":
-    from wsgiref.simple_server import make_server
-    logging.info("Iniciando servidor SOAP na porta 8000...")
-    server = make_server("0.0.0.0", 8000, wsgi_app)
-    server.serve_forever()
+    tns="http://laudoserv
