@@ -77,41 +77,20 @@ class LaudoService(ServiceBase):
 
     @rpc(Unicode, _returns=[LaudoResponse])
     def listar_laudos(ctx, data_emissao):
-        logger.debug(f"[DEBUG] Parâmetro recebido: {data_emissao}")  # <- deve mostrar "14/10/2025"
-        arquivo_json = os.path.join(os.path.dirname(__file__), "laudos_gerados.json")
-        logger.debug(f"[DEBUG] Caminho do JSON: {arquivo_json}")
         logger.debug(f"[DEBUG] Data de emissão recebida: {data_emissao}")
-        logger.debug(f"Caminho do JSON: {arquivo_json}")
-        logger.debug(f"Data recebida: {data_emissao}")
 
-        # Baixa JSON do GitHub se não existir local
-        if not os.path.exists(arquivo_json):
-            logger.debug(f"la1")
-            try:
-                r = requests.get(GITHUB_JSON_URL)
-                logger.debug(f"la2")
-                r.raise_for_status()
-                logger.debug(f"la3")
-                with open(arquivo_json, "w", encoding="utf-8") as f:
-                    logger.debug(f"la4")
-                    f.write(r.text)
-                    logger.debug(f"la5")
-                logger.debug("[DEBUG] Arquivo JSON baixado do GitHub.")
-            except Exception as e:
-                logger.debug(f"la6")
-                logger.debug(f"[ERROR] Não foi possível baixar o JSON: {e}")
-                return []
+        try:
+            # Sempre buscar o JSON mais recente do GitHub
+            logger.debug("[DEBUG] Baixando JSON atualizado do GitHub...")
+            r = requests.get(GITHUB_JSON_URL)
+            r.raise_for_status()
+            laudos_data = r.json()
+            logger.debug(f"[DEBUG] Conteúdo do JSON obtido: {laudos_data}")
+        except Exception as e:
+            logger.error(f"[ERROR] Falha ao baixar/ler JSON do GitHub: {e}")
+            return []
 
-        # Lê JSON
-        with open(arquivo_json, "r", encoding="utf-8") as f:
-            try:
-                laudos_data = json.load(f)
-                logger.debug(f"[DEBUG] Conteúdo do JSON: {laudos_data}")
-            except json.JSONDecodeError:
-                logger.debug("[DEBUG] Erro ao decodificar JSON.")
-                return []
-
-        # Filtra por data de emissão
+        # Filtra os laudos pela data de emissão
         laudos_filtrados = []
         for item in laudos_data:
             if item.get("data_emissao") == data_emissao:
