@@ -5,6 +5,7 @@ from spyne import Application, rpc, ServiceBase, Unicode
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
 from spyne.model.complex import ComplexModel
+from datetime import datetime
 
 # Configuração de log
 logging.basicConfig(level=logging.DEBUG)
@@ -39,17 +40,23 @@ class LaudoService(ServiceBase):
 
         laudos_filtrados = []
         for item in laudos_data:
-            if item.get("data_emissao") == data_emissao:
-                laudo = LaudoResponse(
-                    numero_laudo=item.get("numero_laudo", ""),
-                    data_emissao=item.get("data_emissao", ""),
-                    data_validade=item.get("data_validade", ""),
-                    cpf_cnpj_cliente=item.get("cpf_cnpj_cliente", ""),
-                    nome_cliente=item.get("nome_cliente", ""),
-                    quantidade_caixas=item.get("quantidade_caixas", ""),
-                    modelo_caixas=item.get("modelo_caixas", "")
-                )
-                laudos_filtrados.append(laudo)
+            try:
+                json_date = datetime.strptime(item.get("data_emissao", "").strip(), "%d/%m/%Y")
+                req_date = datetime.strptime(data_emissao.strip(), "%d/%m/%Y")
+                if json_date == req_date:
+                    laudo = LaudoResponse(
+                        numero_laudo=item.get("numero_laudo", ""),
+                        data_emissao=item.get("data_emissao", ""),
+                        data_validade=item.get("data_validade", ""),
+                        cpf_cnpj_cliente=item.get("cpf_cnpj_cliente", ""),
+                        nome_cliente=item.get("nome_cliente", ""),
+                        quantidade_caixas=item.get("quantidade_caixas", ""),
+                        modelo_caixas=item.get("modelo_caixas", "")
+                    )
+                    laudos_filtrados.append(laudo)
+            except Exception as ex:
+                logger.debug(f"[DEBUG] Ignorando item inválido: {item}, erro: {ex}")
+                continue
 
         logger.debug(f"[DEBUG] Laudos filtrados: {laudos_filtrados}")
         return laudos_filtrados
