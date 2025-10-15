@@ -1,11 +1,11 @@
 import json
 import logging
 import requests
+from datetime import datetime, timedelta
 from spyne import Application, rpc, ServiceBase, Unicode
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
-from spyne.model.complex import ComplexModel
-from datetime import datetime
+from spyne.model.complex import ComplexModel, Array
 
 # Configuração de log
 logging.basicConfig(level=logging.DEBUG)
@@ -24,17 +24,19 @@ class LaudoResponse(ComplexModel):
     quantidade_caixas = Unicode
     modelo_caixas = Unicode
 
+# Tipo array de LaudoResponse
+ArrayOfLaudoResponse = Array(LaudoResponse)
+
 # --- Serviço SOAP ---
 class LaudoService(ServiceBase):
 
-    @rpc(Unicode, _returns=[LaudoResponse])
+    @rpc(Unicode, _returns=ArrayOfLaudoResponse)
     def listar_laudos(ctx, data_emissao):
         logger.debug(f"[DEBUG] Data de emissão recebida: {data_emissao}")
         try:
             r = requests.get(GITHUB_JSON_URL)
             r.raise_for_status()
             laudos_data = r.json()
-            logger.debug(f"[DEBUG] Conteúdo do JSON obtido: {laudos_data}")
         except Exception as e:
             logger.error(f"[ERROR] Falha ao baixar/ler JSON do GitHub: {e}")
             return []
@@ -45,16 +47,16 @@ class LaudoService(ServiceBase):
                 json_date = datetime.strptime(item.get("data_emissao", "").strip(), "%d/%m/%Y")
                 req_date = datetime.strptime(data_emissao.strip(), "%d/%m/%Y")
                 if json_date == req_date:
-                    # Retorna dicionário, não instância de ComplexModel
-                    laudos_filtrados.append({
-                        "numero_laudo": item.get("numero_laudo", ""),
-                        "data_emissao": item.get("data_emissao", ""),
-                        "data_validade": item.get("data_validade", ""),
-                        "cpf_cnpj_cliente": item.get("cpf_cnpj_cliente", ""),
-                        "nome_cliente": item.get("nome_cliente", ""),
-                        "quantidade_caixas": item.get("quantidade_caixas", ""),
-                        "modelo_caixas": item.get("modelo_caixas", "")
-                    })
+                    laudo = LaudoResponse(
+                        numero_laudo=item.get("numero_laudo", ""),
+                        data_emissao=item.get("data_emissao", ""),
+                        data_validade=item.get("data_validade", ""),
+                        cpf_cnpj_cliente=item.get("cpf_cnpj_cliente", ""),
+                        nome_cliente=item.get("nome_cliente", ""),
+                        quantidade_caixas=item.get("quantidade_caixas", ""),
+                        modelo_caixas=item.get("modelo_caixas", "")
+                    )
+                    laudos_filtrados.append(laudo)
             except Exception as ex:
                 logger.debug(f"[DEBUG] Ignorando item inválido: {item}, erro: {ex}")
                 continue
@@ -66,16 +68,20 @@ class LaudoService(ServiceBase):
     def gerar_laudo(ctx, nome_cliente, cpf_cnpj_cliente, quantidade_caixas, modelo_caixas, numero_laudo):
         logger.debug("[DEBUG] Gerando novo laudo...")
 
-        laudo = {
-            "numero_laudo": numero_laudo,
-            "data_emissao": datetime.now().strftime("%d/%m/%Y"),
-            "data_validade": (datetime.now() + timedelta(days=15)).strftime("%d/%m/%Y"),
-            "cpf_cnpj_cliente": cpf_cnpj_cliente,
-            "nome_cliente": nome_cliente,
-            "quantidade_caixas": quantidade_caixas,
-            "modelo_caixas": modelo_caixas
-        }
+        data_emissao = datetime.now().strftime("%d/%m/%Y")
+        data_validade = (datetime.now() + timedelta(days=15)).strftime("%d/%m/%Y")
 
+        laudo = LaudoResponse(
+            numero_laudo=numero_laudo,
+            data_emissao=data_emissao,
+            data_validade=data_validade,
+            cpf_cnpj_cliente=cpf_cnpj_cliente,
+            nome_cliente=nome_cliente,
+            quantidade_caixas=quantidade_caixas,
+            modelo_caixas=modelo_caixas
+        )
+
+        # Salva no JSON local
         arquivo_json = "laudos_gerados.json"
         try:
             with open(arquivo_json, "r", encoding="utf-8") as f:
@@ -86,15 +92,25 @@ class LaudoService(ServiceBase):
         except FileNotFoundError:
             dados = []
 
-        dados.append(laudo)
+        dados.append({
+            "numero_laudo": numero_laudo,
+            "data_emissao": data_emissao,
+            "data_validade": data_validade,
+            "cpf_cnpj_cliente": cpf_cnpj_cliente,
+            "nome_cliente": nome_cliente,
+            "quantidade_caixas": quantidade_caixas,
+            "modelo_caixas": modelo_caixas
+        })
+
         with open(arquivo_json, "w", encoding="utf-8") as f:
             json.dump(dados, f, ensure_ascii=False, indent=4)
 
         logger.debug(f"[DEBUG] Novo laudo gerado: {laudo}")
-        return laudo  # Retorna dicionário para Spyne
+        return laudo
 
-# --- Configuração do SOAP ---
-application = Application([LaudoService],
+# --- Configuração SOAP ---
+application = Application(
+    [LaudoService],
     tns="http://laudoservice.onrender.com/soap",
     in_protocol=Soap11(validator="lxml"),
     out_protocol=Soap11()
