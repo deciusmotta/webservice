@@ -1,19 +1,19 @@
-from flask import Flask, Response
-from spyne import Application, rpc, ServiceBase, Unicode, ComplexModel
+import json
+import logging
+import requests
+from spyne import Application, rpc, ServiceBase, Iterable, Unicode
 from spyne.protocol.soap import Soap11
 from spyne.server.wsgi import WsgiApplication
-from datetime import datetime, timedelta
-import json
-import os
-import requests
-import logging
+from spyne.model.complex import ComplexModel
+from spyne.model.primitive import Integer
 
-app = Flask(__name__)
-
+# Configuração de log
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# --- Modelo de resposta ---
+# URL do arquivo JSON no GitHub
+GITHUB_JSON_URL = "https://raw.githubusercontent.com/deciusmotta/laudo/main/laudos_gerados.json"
+
 class LaudoResponse(ComplexModel):
     numero_laudo = Unicode
     data_emissao = Unicode
@@ -23,64 +23,12 @@ class LaudoResponse(ComplexModel):
     quantidade_caixas = Unicode
     modelo_caixas = Unicode
 
-# URL do JSON no GitHub
-GITHUB_JSON_URL = "https://raw.githubusercontent.com/deciusmotta/laudo/main/laudos_gerados.json"
-
-# --- Serviço SOAP ---
 class LaudoService(ServiceBase):
-
-    @rpc(Unicode, Unicode, Unicode, Unicode, Unicode, _returns=LaudoResponse)
-    def gerar_laudo(ctx, nome_cliente, cpf_cnpj_cliente, quantidade_caixas, modelo_caixas, numero_laudo):
-        data_emissao = datetime.now().strftime("%d/%m/%Y")
-        data_validade = (datetime.now() + timedelta(days=15)).strftime("%d/%m/%Y")
-
-        laudo = {
-            "numero_laudo": numero_laudo,
-            "data_emissao": data_emissao,
-            "data_validade": data_validade,
-            "cpf_cnpj_cliente": cpf_cnpj_cliente,
-            "nome_cliente": nome_cliente,
-            "quantidade_caixas": quantidade_caixas,
-            "modelo_caixas": modelo_caixas
-        }
-
-        arquivo_json = os.path.join(os.path.dirname(__file__), "laudos_gerados.json")
-
-        # Baixa JSON do GitHub se não existir
-        if not os.path.exists(arquivo_json):
-            try:
-                r = requests.get(GITHUB_JSON_URL)
-                logger.debug(f"aqui1")
-                r.raise_for_status()
-                logger.debug(f"aqui2")
-                with open(arquivo_json, "w", encoding="utf-8") as f:
-                    logger.debug(f"aqui3")
-                    f.write(r.text)
-                    logger.debug(f"aqui4")
-                logger.debug("[DEBUG] Arquivo JSON baixado do GitHub.")
-            except Exception as e:
-                logger.debug(f"[ERROR] Não foi possível baixar o JSON: {e}")
-                return LaudoResponse(**laudo)  # Retorna apenas o laudo atual
-
-        # Lê, adiciona e salva
-        with open(arquivo_json, "r", encoding="utf-8") as f:
-            try:
-                dados = json.load(f)
-            except json.JSONDecodeError:
-                dados = []
-
-        dados.append(laudo)
-        with open(arquivo_json, "w", encoding="utf-8") as f:
-            json.dump(dados, f, ensure_ascii=False, indent=4)
-
-        return LaudoResponse(**laudo)
 
     @rpc(Unicode, _returns=[LaudoResponse])
     def listar_laudos(ctx, data_emissao):
         logger.debug(f"[DEBUG] Data de emissão recebida: {data_emissao}")
-
         try:
-            # Sempre buscar o JSON mais recente do GitHub
             logger.debug("[DEBUG] Baixando JSON atualizado do GitHub...")
             r = requests.get(GITHUB_JSON_URL)
             r.raise_for_status()
@@ -90,7 +38,6 @@ class LaudoService(ServiceBase):
             logger.error(f"[ERROR] Falha ao baixar/ler JSON do GitHub: {e}")
             return []
 
-        # Filtra os laudos pela data de emissão
         laudos_filtrados = []
         for item in laudos_data:
             if item.get("data_emissao") == data_emissao:
@@ -108,32 +55,47 @@ class LaudoService(ServiceBase):
         logger.debug(f"[DEBUG] Laudos filtrados: {laudos_filtrados}")
         return laudos_filtrados
 
+    @rpc(Unicode, Unicode, Unicode, Unicode, Unicode, _returns=LaudoResponse)
+    def gerar_laudo(ctx, nome_cliente, cpf_cnpj_cliente, quantidade_caixas, modelo_caixas, numero_laudo):
+        logger.debug("[DEBUG] Gerando novo laudo...")
 
-# --- Configuração SOAP ---
-soap_app = Application(
-    [LaudoService],
-    tns="http://laudoservice.onrender.com/soap",
+        laudo = {
+            "numero_laudo": numero_laudo,
+            "data_emissao": "2025-10-15",
+            "data_validade": "2026-10-15",
+            "cpf_cnpj_cliente": cpf_cnpj_cliente,
+            "nome_cliente": nome_cliente,
+            "quantidade_caixas": quantidade_caixas,
+            "modelo_caixas": modelo_caixas
+        }
+
+        arquivo_json = "laudos_gerados.json"
+        try:
+            with open(arquivo_json, "r", encoding="utf-8") as f:
+                try:
+                    dados = json.load(f)
+                except json.JSONDecodeError:
+                    dados = []
+        except FileNotFoundError:
+            dados = []
+
+        dados.append(laudo)
+        with open(arquivo_json, "w", encoding="utf-8") as f:
+            json.dump(dados, f, ensure_ascii=False, indent=4)
+
+        logger.debug(f"[DEBUG] Novo laudo gerado: {laudo}")
+        return laudo
+
+application = Application([LaudoService],
+    tns="spyne.examples.laudos",
     in_protocol=Soap11(validator="lxml"),
     out_protocol=Soap11()
 )
-wsgi_app = WsgiApplication(soap_app)
-app.wsgi_app = wsgi_app
 
-# --- Rota de verificação ---
-@app.route("/")
-def home():
-    return "Serviço SOAP de Laudos ativo e funcional!"
+wsgi_app = WsgiApplication(application)
 
-# --- Rota para servir o WSDL ---
-@app.route("/wsdl")
-def wsdl():
-    wsdl_path = os.path.join(os.path.dirname(__file__), "laudoservice.wsdl")
-    if not os.path.exists(wsdl_path):
-        return Response("WSDL não encontrado.", status=404)
-    with open(wsdl_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    return Response(content, mimetype="text/xml")
-
-# --- Inicialização ---
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    from wsgiref.simple_server import make_server
+    logging.info("Iniciando servidor SOAP na porta 8000...")
+    server = make_server("0.0.0.0", 8000, wsgi_app)
+    server.serve_forever()
