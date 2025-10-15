@@ -95,4 +95,15 @@ class LaudoService(ServiceBase):
 
 # --- Configuração do SOAP ---
 application = Application([LaudoService],
-    tns="http://laudoserv
+    tns="http://laudoservice.onrender.com/soap",
+    in_protocol=Soap11(validator="lxml"),
+    out_protocol=Soap11()
+)
+
+wsgi_app = WsgiApplication(application)
+
+if __name__ == "__main__":
+    from wsgiref.simple_server import make_server
+    logging.info("Iniciando servidor SOAP na porta 8000...")
+    server = make_server("0.0.0.0", 8000, wsgi_app)
+    server.serve_forever()
