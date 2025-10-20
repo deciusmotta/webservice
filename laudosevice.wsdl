@@ -25,7 +25,7 @@
             </xsd:complexType>
 
             <!-- Requisição gerar_laudos -->
-            <xsd:element name="gerar_laudos">
+            <xsd:element name="gerar_laudo">
                 <xsd:complexType>
                     <xsd:sequence>
                         <xsd:element name="data_emissao" type="xsd:string"/>
@@ -33,11 +33,11 @@
                 </xsd:complexType>
             </xsd:element>
 
-            <!-- Resposta gerar_laudos -->
-            <xsd:element name="gerar_laudosResponse">
+            <!-- Resposta gerar_laudo -->
+            <xsd:element name="gerar_laudoResponse">
                 <xsd:complexType>
                     <xsd:sequence>
-                        <xsd:element name="listar_laudosResult" type="tns:LaudoResponse" minOccurs="0" maxOccurs="unbounded"/>
+                        <xsd:element name="gerar_laudoResult" type="tns:LaudoResponse" minOccurs="0" maxOccurs="unbounded"/>
                     </xsd:sequence>
                 </xsd:complexType>
             </xsd:element>
