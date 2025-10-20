@@ -79,7 +79,7 @@
     <!-- Serviço -->
     <service name="LaudoService">
         <port name="LaudoServicePort" binding="tns:LaudoServiceBinding">
-            <soap:address location="https://laudoservice.onrender.com/soap"/>
+            <soap:address location="https://laudoservice.onrender.com/soap/"/>
         </port>
     </service>
 
