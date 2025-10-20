@@ -31,7 +31,7 @@ ArrayOfLaudoResponse = Array(LaudoResponse)
 class LaudoService(ServiceBase):
 
     @rpc(Unicode, _returns=ArrayOfLaudoResponse)
-    def listar_laudos(ctx, data_emissao):
+    def gerar_laudo(ctx, data_emissao):
         logger.debug(f"[DEBUG] Data de emissão recebida: {data_emissao}")
         try:
             r = requests.get(GITHUB_JSON_URL)
@@ -63,50 +63,6 @@ class LaudoService(ServiceBase):
 
         logger.debug(f"[DEBUG] Laudos filtrados: {laudos_filtrados}")
         return laudos_filtrados
-
-    @rpc(Unicode, Unicode, Unicode, Unicode, Unicode, _returns=LaudoResponse)
-    def gerar_laudo(ctx, nome_cliente, cpf_cnpj_cliente, quantidade_caixas, modelo_caixas, numero_laudo):
-        logger.debug("[DEBUG] Gerando novo laudo...")
-
-        data_emissao = datetime.now().strftime("%d/%m/%Y")
-        data_validade = (datetime.now() + timedelta(days=15)).strftime("%d/%m/%Y")
-
-        laudo = LaudoResponse(
-            numero_laudo=numero_laudo,
-            data_emissao=data_emissao,
-            data_validade=data_validade,
-            cpf_cnpj_cliente=cpf_cnpj_cliente,
-            nome_cliente=nome_cliente,
-            quantidade_caixas=quantidade_caixas,
-            modelo_caixas=modelo_caixas
-        )
-
-        # Salva no JSON local
-        arquivo_json = "laudos_gerados.json"
-        try:
-            with open(arquivo_json, "r", encoding="utf-8") as f:
-                try:
-                    dados = json.load(f)
-                except json.JSONDecodeError:
-                    dados = []
-        except FileNotFoundError:
-            dados = []
-
-        dados.append({
-            "numero_laudo": numero_laudo,
-            "data_emissao": data_emissao,
-            "data_validade": data_validade,
-            "cpf_cnpj_cliente": cpf_cnpj_cliente,
-            "nome_cliente": nome_cliente,
-            "quantidade_caixas": quantidade_caixas,
-            "modelo_caixas": modelo_caixas
-        })
-
-        with open(arquivo_json, "w", encoding="utf-8") as f:
-            json.dump(dados, f, ensure_ascii=False, indent=4)
-
-        logger.debug(f"[DEBUG] Novo laudo gerado: {laudo}")
-        return laudo
 
 # --- Configuração SOAP ---
 application = Application(
