@@ -68,6 +68,7 @@ class LaudoService(ServiceBase):
 application = Application(
     [LaudoService],
     tns="http://laudoservice.onrender.com/soap",
+    name="SoapService",
     in_protocol=Soap11(validator="lxml"),
     out_protocol=Soap11()
 )
