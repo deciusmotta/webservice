@@ -24,30 +24,8 @@
                 </xsd:sequence>
             </xsd:complexType>
 
-            <!-- Requisição gerar_laudo -->
-            <xsd:element name="gerar_laudo">
-                <xsd:complexType>
-                    <xsd:sequence>
-                        <xsd:element name="nome_cliente" type="xsd:string"/>
-                        <xsd:element name="cpf_cnpj_cliente" type="xsd:string"/>
-                        <xsd:element name="quantidade_caixas" type="xsd:string"/>
-                        <xsd:element name="modelo_caixas" type="xsd:string"/>
-                        <xsd:element name="numero_laudo" type="xsd:string"/>
-                    </xsd:sequence>
-                </xsd:complexType>
-            </xsd:element>
-
-            <!-- Resposta gerar_laudo -->
-            <xsd:element name="gerar_laudoResponse">
-                <xsd:complexType>
-                    <xsd:sequence>
-                        <xsd:element name="gerar_laudoResult" type="tns:LaudoResponse"/>
-                    </xsd:sequence>
-                </xsd:complexType>
-            </xsd:element>
-
-            <!-- Requisição listar_laudos -->
-            <xsd:element name="listar_laudos">
+            <!-- Requisição gerar_laudos -->
+            <xsd:element name="gerar_laudos">
                 <xsd:complexType>
                     <xsd:sequence>
                         <xsd:element name="data_emissao" type="xsd:string"/>
@@ -55,8 +33,8 @@
                 </xsd:complexType>
             </xsd:element>
 
-            <!-- Resposta listar_laudos -->
-            <xsd:element name="listar_laudosResponse">
+            <!-- Resposta gerar_laudos -->
+            <xsd:element name="gerar_laudosResponse">
                 <xsd:complexType>
                     <xsd:sequence>
                         <xsd:element name="listar_laudosResult" type="tns:LaudoResponse" minOccurs="0" maxOccurs="unbounded"/>
@@ -76,23 +54,11 @@
         <part name="parameters" element="tns:gerar_laudoResponse"/>
     </message>
 
-    <message name="listar_laudosRequest">
-        <part name="parameters" element="tns:listar_laudos"/>
-    </message>
-
-    <message name="listar_laudosResponse">
-        <part name="parameters" element="tns:listar_laudosResponse"/>
-    </message>
-
     <!-- PortType -->
     <portType name="LaudoServicePortType">
         <operation name="gerar_laudo">
             <input message="tns:gerar_laudoRequest"/>
             <output message="tns:gerar_laudoResponse"/>
-        </operation>
-        <operation name="listar_laudos">
-            <input message="tns:listar_laudosRequest"/>
-            <output message="tns:listar_laudosResponse"/>
         </operation>
     </portType>
 
@@ -101,15 +67,6 @@
         <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
         <operation name="gerar_laudo">
             <soap:operation soapAction="gerar_laudo"/>
-            <input>
-                <soap:body use="literal"/>
-            </input>
-            <output>
-                <soap:body use="literal"/>
-            </output>
-        </operation>
-        <operation name="listar_laudos">
-            <soap:operation soapAction="listar_laudos"/>
             <input>
                 <soap:body use="literal"/>
             </input>
